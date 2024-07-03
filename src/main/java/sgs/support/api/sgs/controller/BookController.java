@@ -12,8 +12,13 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import com.github.slugify.Slugify;
+
+import sgs.support.api.sgs.dto.BookWithoutAuthor;
+import sgs.support.api.sgs.entity.Author;
 import sgs.support.api.sgs.entity.Book;
+import sgs.support.api.sgs.repository.AuthorRepository;
 import sgs.support.api.sgs.repository.BookRepository;
+import sgs.support.api.sgs.service.AuthorService;
 
 @RestController
 @RequestMapping("/books")
@@ -24,6 +29,12 @@ public class BookController {
     @Autowired
     BookRepository bookRepo;
 
+    @Autowired
+    AuthorRepository authorRepo;
+
+    @Autowired
+    AuthorService authorService;
+
     @GetMapping("")
     public List<Book> getAll() {
         List<Book> books = this.bookRepo.findAllByOrderByNameAsc(); 
@@ -31,9 +42,12 @@ public class BookController {
     }
 
     @GetMapping("/{id}")
-    public Book getOneById(@PathVariable Long id) {
+    public BookWithoutAuthor getOneById(@PathVariable Long id) {
         Book book = this.bookRepo.findById(id).get();
-        return book;
+        BookWithoutAuthor bookWithoutAuthor = new BookWithoutAuthor(
+            book.getId(), book.getName(), book.getCover(), book.getSynopsis()
+            );
+        return bookWithoutAuthor;
     }
 
     @GetMapping("/title/{slug}")
@@ -47,7 +61,11 @@ public class BookController {
 
     @PostMapping("")
     public Book addOne(@RequestBody Book book){
+
         book.setSlug(slugify.slugify(book.getName()));
+        Author author = this.authorService.findOrCreateAuthor(book.getAuthor().getName());
+        book.setAuthor(author);
+
         return this.bookRepo.save(book);
     }
 
@@ -57,7 +75,7 @@ public class BookController {
         Book retrievedBook = this.bookRepo.findById(id).get();
         retrievedBook.setName(book.getName());
         retrievedBook.setSlug(slugify.slugify(book.getName()));
-        retrievedBook.setAuthor(book.getAuthor());
+        retrievedBook.setAuthor(authorService.findOrCreateAuthor(book.getAuthor().getName()));
         retrievedBook.setCover(book.getCover());
         retrievedBook.setSynopsis(book.getSynopsis());
         
